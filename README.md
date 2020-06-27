@@ -23,7 +23,7 @@ sudo systemctl start mongod
 # Validate: mongo --eval 'db.runCommand({ connectionStatus: 1})'
 ```
 
-## Configure DB
+## Configure Mongo so that backend can communicate with it 
 **Admin config**
 
 ```sh
