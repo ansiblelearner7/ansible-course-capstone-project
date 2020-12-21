@@ -1,0 +1,275 @@
+Target hosts
+
+#####
+1.) ec2
+
+  ssh -i keypair.pem ubuntu@3.239.83.231
+ useradd ansadmin
+ passwd ansadmin
+
+mkdir /home/ansadmin
+chown -R ansadmin /home/ansadmin
+chgrp -R ansadmin /home/ansadmin
+
+su - ansadmin
+mkdir .ssh
+vim ~/.ssh/authorized_keys
+###<Add public key>
+-rw-rw-r-- 1 ansadmin ansadmin  574 Dec 19 10:20 authorized_keys
+
+ubuntu@ip-172-31-76-52:~$ exit
+logout
+
+##Test:
+ssh -i <our private key > ansadmin@3.239.83.231
+
+ansadmin@ip-172-31-76-52:~$ echo $USER
+ansadmin
+ansadmin@ip-172-31-76-52:~$ hostname
+ip-172-31-76-52
+
+
+Docker Container:
+
+docker run --name target-host -p 2525:22   -v /sys/fs/cgroup:/sys/fs/cgroup:ro   --privileged   -d abdennour/rhel:8-ssh
+
+
+useradd ansadmin
+ passwd ansadmin
+
+mkdir /home/ansadmin/.ssh
+cd /home/ansadmin/.ssh
+ vi authorized_keys     ### add public key
+ chown -R  ansadmin /home/ansadmin
+ chgrp  -R  ansadmin /home/ansadmin
+ chmod 700 /home/ansadmin/.ssh
+ chmod 600 /home/ansadmin/.ssh/authorized_keys 
+
+
+
+Test:
+ssh ansadmin@localhost -p 2525
+[ansadmin@41d96da693f3 ~]$ 
+
+---> Install Ansible 
+
+pip3
+python3
+
+pip   apt-get yum  brew
+
+: 6 
+
+##ssh -i ~/.ssh/id_rsa  ansadmin@localhost -p 2525
+
+container ansible_host=localhost  ansible_private_key_file=/home/awsdevops/.ssh/id_rsa  ansible_ssh_user=ansadmin ansible_ssh_port=2525
+
+: 7
+Ansible module
+
+mkdir-- creae dir
+touch  -- create file
+yum instal/apt-get  --install pkg
+
+To connect to systes, we use module ping
+-m file ---> create file/dir
+-m pkg ---> to install pkg  module 
+-m copy ---> fcop from control m/c to target host
+
+ansible_doc --list 
+##     /^file    ---> starting with file keyword
+        q--- quit
+ansible-doc  file
+
+: * ansible-doc  file      /EXAMPLES:
+
+###   Ansible module usage
+
+without:       (command+options)
+ssh target  mkdir -p /tmp/data
+
+With Ansible:  (Module+attributes)
+ansible target -m file -a 'path=/tmp/data state=directory'
+
+
+:*Imperative -- commands       --- Ansible  Adhoc command or module
+
+  ex: ansible -m file -a 'path=/tmp/data' 
+:* Declarative -- shell script  --  .yaml (ansble playbok)   
+
+file:
+ path: /tmp/data
+ 
+ 
+
+: 8
+
+terminator
+
+ ansible all -m copy -a 'src=inventory dest=/tmp' 
+ watch ls -l /tmp
+
+: 9
+
+# Changed output color --yellow
+# re-run again same --- color ---green (diff. b/w wheel scripts and ansible)
+Bcx ansible compares desired state with actual state of target server  before execution
+If target server already in desired state, ansible module will do nothing       ---> idempotence 
+
+Ex: even if we ran copy module 100 times, if taarget host   is  already in desired state, it will do nothing
+ 
+: 10
+
+Add a linein a file
+
+1.) ansible all -m copy -a "src=prod.env dest=/tmp"
+
+ansible-doc lineinfile
+module: lineinfile | attrs: path, line
+
+ansible all -m lineinfile -a 'path=/tmp/prod.env  line="hello 1 2 23"'
+
+: 11 
+& :12
+
+priveilege escalation:
+cd /etc/sudoers.d/
+vim ansadmin_user
+  ansadmin                 ALL=(ALL:ALL)                  NOPASSWD:ALL
+<name of user>       <All hosts>  ALL users:ALL groups    Nopassword for ALL commands      
+  
+  ansible all -m package -a 'name=nginx state=present' ##--become
+systemctl status  nginx
+curl localhost:80 | grep -i welcome
+
+: 13
+
+#Ansible adhoc single command or for quick test.
+--->    1.) We cant execute sequence of commands
+--->    2.) We cant track history of changes. Indded if history of our terminal deleted, we will not be able to reproduce these commands easily
+# Ansible playbook  (yaml)
+  text file in yaml format
+--->  Attributes as key value pair in each line
+  
+- file:
+   path: /tmp/data
+   state: directory
+- copy:
+  src: inventory
+  dest: /tmp
+ 
+
+:*Imperative -- commands       --- Ansible  Adhoc command or module
+
+  ex: ansible target -m file -a 'path=/tmp/data state=directory' 
+:* Declarative -- shell script  --  .yaml (ansble playbok)   
+
+
+: 14
+
+event: DevOps Days                                  #key-value pair
+date: 2018-12-03 10:00GMT+3
+location:                                           # nested object Dictionary or Map
+    building: IT Stars
+    address:
+        lines: |                                      ## multi-line string
+            7173 Floor 2
+            Street Randa
+        city: Tunis
+        postal: 12233
+# List of topics                                    ## comment
+topics:                                              ##list/array
+    - name: Reliability in IT
+      minutes: 20
+      speaker: Abdennour Toumi
+    - name: K8S Hands-on
+      minutes: 40
+      speaker: Firas Abid
+      
+ : 15
+
+
+: | 
+    playbook is text file written in yaml format
+    Each playbook is list of plays  to run in order
+-
+    
+ ## playbook has 2 plays   
+ #   Each play has list of tasks  with specific host
+ #   Each task is a CALL of a module
+    
+ 
+ - name: Play 1 - App Deployment            ## play-1
+  hosts: all                                ## target --  all hosts
+  tasks:                                        ## 2tasks
+  - name: directory exist
+    file:                                   ---> 1st task is call of file module
+      path: /tomcat/webapps
+      state: directory
+  - name: file is copied                    ---> 2nd  task is call of Copy  module
+    copy:
+      src: target/app.war
+      dest: /tomcat/webapps/app.war
+      
+- name: Play 2 - DB Deployment              ##play-2
+  hosts: db                                    ## target -- db host
+  tasks:
+  - name: DB engine is installed
+    service:
+      name: mysql
+      state: latest
+
+
+: 16
+first playbook
+
+- hosts: all
+  tasks:
+  - copy:
+      dest: "/tmp/hello.txt" 
+      content: "hello here" 
+  - copy:
+      dest: "/tmp/hi.txt" 
+      content: "HI here" 
+  - archive:
+      path: 
+      - /tmp/hello.txt
+      - /tmp/hi.txt
+      dest: /tmp/hi.zip
+      format: zip 
+      
+
+: 17
+: | 
+     naming is best practice
+     
+     name for each  play
+    name for each task
+
+-  
+ 
+- name: play for file management                            ## name for play
+  hosts: all
+  tasks:
+                                                         # comment create file `/tmp/hello.txt` with some content
+  - name: hello file is copied                           # ## name for task
+    copy:
+      content: "Hello here"
+      dest: /tmp/hello.txt
+  - name: hi file is copied                                 # ## name for task
+    copy:
+      content: "Hi here"
+      dest: /tmp/hi.txt
+  - name: archive hh is created                           # ## name for task                  
+    archive:
+      path:
+      - /tmp/hello.txt
+      - /tmp/hi.txt
+      dest: /tmp/hh.zip
+      format: zip
+      
+
+
+
+
+
